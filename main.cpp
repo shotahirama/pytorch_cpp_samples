@@ -1,10 +1,6 @@
 #include <torch/script.h>
-
 #include <iostream>
 #include <memory>
-
-#include <typeinfo>
-
 #include <opencv2/opencv.hpp>
 
 std::vector<float> reorder_to_chw(cv::Mat const& img) {
@@ -33,7 +29,6 @@ int main(int argc, const char* argv[]) {
     return -1;
   }
 
-  std::cout << argc << std::endl;
   torch::DeviceType device_type = at::kCPU;
   if (argc > 3) {
     device_type = at::kCUDA;
@@ -67,5 +62,4 @@ int main(int argc, const char* argv[]) {
 
   at::Tensor output = module->forward(inputs).toTensor();
   std::cout << output.argmax().item<int>() << std::endl;
-  std::cout << output.flatten()[0].item<float>() << std::endl;
 }

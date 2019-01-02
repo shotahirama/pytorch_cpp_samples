@@ -4,7 +4,8 @@
 import torch
 import torchvision
 
-model = torchvision.models.resnet50()
+model = torchvision.models.resnet50(pretrained=True)
+model.eval()
 
 example = torch.zeros(1, 3, 224, 224)
 
