@@ -1,7 +1,10 @@
 #include <torch/script.h>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <opencv2/opencv.hpp>
+#include <string>
+#include <vector>
 
 std::vector<float> reorder_to_chw(cv::Mat const& img) {
   assert(img.channels() == 3);
@@ -23,14 +26,26 @@ std::vector<float> reorder_to_chw(cv::Mat const& img) {
   return data;
 }
 
+std::vector<std::string> split_labelname(std::string filepath) {
+  std::ifstream ifs(filepath);
+  std::string line;
+  std::vector<std::string> labelnames;
+  while (std::getline(ifs, line)) {
+    auto p1 = line.find("'") + 1;
+    auto p2 = line.rfind("'");
+    labelnames.emplace_back(line.substr(p1, p2 - p1));
+  }
+  return labelnames;
+}
+
 int main(int argc, const char* argv[]) {
-  if (argc < 2) {
-    std::cerr << "usage: example-app <path-to-exported-script-module>\n";
+  if (argc < 4) {
+    std::cerr << "usage: example-app <path-to-exported-script-module> <imagenet-labels-txt> <image>\n";
     return -1;
   }
 
   torch::DeviceType device_type = at::kCPU;
-  if (argc > 3) {
+  if (argc > 4) {
     device_type = at::kCUDA;
     std::cout << "use cuda" << std::endl;
   }
@@ -41,9 +56,9 @@ int main(int argc, const char* argv[]) {
   module->to(device);
 
   assert(module != nullptr);
-  std::cout << "ok\n";
 
-  cv::Mat img = cv::imread(argv[2]);
+  auto labelnames = split_labelname(argv[2]);
+  cv::Mat img = cv::imread(argv[3]);
   cv::resize(img, img, cv::Size(224, 224));
   cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
 
@@ -55,11 +70,11 @@ int main(int argc, const char* argv[]) {
 
   std::vector<torch::jit::IValue> inputs;
   torch::Tensor input = torch::from_blob(img.ptr<float>(), {1, 3, 224, 224}).to(device);
-  // torch::Tensor input = torch::from_blob(img.ptr<float>(), {3, 224, 224});
-  // input = input.unsqueeze(0);
+  // torch::Tensor input = torch::from_blob(img.ptr<float>(), {3, 224, 224}).unsqueeze(0);
   input = input.sub(mean).div(std);
   inputs.push_back(input);
 
   at::Tensor output = module->forward(inputs).toTensor();
-  std::cout << output.argmax().item<int>() << std::endl;
+  int label = output.argmax().item<int>();
+  std::cout << labelnames[label] << std::endl;
 }
